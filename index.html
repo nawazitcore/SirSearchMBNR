@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>193-Mahbubnagar Town Only Voter Search</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/sql-wasm.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; padding: 20px; }
+        .card { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #2c3e50; margin-top: 0; }
+        .status-bar { text-align: center; font-size: 14px; margin-bottom: 20px; padding: 10px; border-radius: 5px; }
+        .loading { background: #fff3cd; color: #856404; }
+        .ready { background: #d4edda; color: #155724; }
+        
+        .search-grid { display: grid; grid-template-columns: 1fr 1fr auto; gap: 15px; margin-bottom: 25px; }
+        input { padding: 12px; border: 2px solid #ddd; border-radius: 8px; outline: none; transition: 0.3s; }
+        input:focus { border-color: #3498db; }
+        button { padding: 12px 30px; background: #3498db; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #2980b9; }
+
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px; border-bottom: 1px solid #eee; text-align: left; }
+        th { background: #f8f9fa; position: sticky; top: 0; }
+        tr:hover { background: #f9f9f9; }
+        .telugu-text { font-family: 'Gautami', 'Arial', sans-serif; color: #2c3e50; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Voter List Search (193 - Mahbubnagar Town Only)</h2>
+	<h4>Developer Nawaz Ahmed (nawazitcore@gmail.com)</h4>
+    <div id="status" class="status-bar loading">📥 Loading Database (File size might be large)...</div>
+
+    <div class="search-grid">
+        <input type="text" id="nameInput" placeholder="Name / Relation Name (Telugu or English)">
+        <input type="text" id="houseInput" placeholder="House Number (e.g. 6-1-52)">
+        <button onclick="doSearch()">🔍 Search</button>
+    </div>
+
+    <div class="table-container">
+        <table id="resultTable">
+            <thead>
+                <tr>
+                    <th>PS</th>
+                    <th>Sl</th>
+                    <th>House No</th>
+                    <th>Elector Name</th>
+                    <th>Relation Name</th>
+                    <th>Age</th>
+                    <th>EPIC</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let db = null;
+
+    // Database Initialization
+    async function init() {
+        try {
+            const sqlPromise = initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.6.2/${file}` });
+            const dataPromise = fetch("VoterData_193.db").then(res => {
+                if(!res.ok) throw new Error("Database file not found!");
+                return res.arrayBuffer();
+            });
+
+            const [SQL, buf] = await Promise.all([sqlPromise, dataPromise]);
+            db = new SQL.Database(new Uint8Array(buf));
+            
+            document.getElementById('status').innerText = "✅ Database Ready! Search now.";
+            document.getElementById('status').className = "status-bar ready";
+        } catch (err) {
+            document.getElementById('status').innerText = "❌ Error: " + err.message;
+            document.getElementById('status').style.background = "#f8d7da";
+        }
+    }
+
+    function doSearch() {
+        if (!db) return;
+        
+        const nameVal = document.getElementById('nameInput').value.trim();
+        const houseVal = document.getElementById('houseInput').value.trim();
+        const tbody = document.querySelector("#resultTable tbody");
+        tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>Searching...</td></tr>";
+
+        // SQL Construction
+        let query = "SELECT * FROM voters WHERE 1=1";
+        if(nameVal) query += ` AND (Elector_Name LIKE '%${nameVal}%' OR Relation_Name LIKE '%${nameVal}%')`;
+        if(houseVal) query += ` AND House_No LIKE '%${houseVal}%'`;
+        query += " LIMIT 200";
+
+        const results = db.exec(query);
+        tbody.innerHTML = "";
+
+        if (results.length > 0) {
+            results[0].values.forEach(row => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${row[0]}</td>
+                    <td>${row[1]}</td>
+                    <td><b>${row[3]}</b></td>
+                    <td class="telugu-text">${row[4]}</td>
+                    <td class="telugu-text">${row[6]}</td>
+                    <td>${row[8]}</td>
+                    <td>${row[9]}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } else {
+            tbody.innerHTML = "<tr><td colspan='7' style='text-align:center;'>No matching records found.</td></tr>";
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
